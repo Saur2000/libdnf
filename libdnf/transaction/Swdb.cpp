@@ -62,8 +62,8 @@ Swdb::Swdb(const std::string &path)
         // connect to an in-memory database as requested
         conn = std::make_shared<SQLite3>(path);
         Transformer::createDatabase(conn);
-    } else if (pathExists(path.c_str())) {
-        if (geteuid() == 0) {
+    } else if (geteuid() == 0) {
+        if (pathExists(path.c_str())) {
             // database exists, running under root
             try {
                 conn = std::make_shared<SQLite3>(path);
@@ -76,21 +76,6 @@ Swdb::Swdb(const std::string &path)
                 throw;
             }
         } else {
-            // database exists, running under unprivileged user
-            try {
-                conn = std::make_shared<SQLite3>(path);
-                // execute a select to detect if the database is readable
-                conn->exec("SELECT * FROM config WHERE key='test'");
-            } catch (SQLite3::Error & ex) {
-                // unpriviledged user may have insufficient permissions to open the database -> in-memory fallback
-                conn = std::make_shared<SQLite3>(":memory:");
-                Transformer::createDatabase(conn);
-                auto logger(libdnf::Log::getLogger());
-                logger->error(tfm::format("History database is not readable, using in-memory database instead: %s", ex.what()));
-            }
-        }
-     } else {
-        if (geteuid() == 0) {
             // database doesn't exist, running under root
             // create a new database and migrate old data
 
@@ -106,19 +91,19 @@ Swdb::Swdb(const std::string &path)
                 logger->error(tfm::format("History database cannot be created: %s", ex.what()));
                 throw;
             }
-        } else {
-            try {
-                // database doesn't exist, running under unprivileged user
-                // connect to a new database and initialize it; old data is not migrated
-                conn = std::make_shared<SQLite3>(path);
-                Transformer::createDatabase(conn);
-            } catch (SQLite3::Error & ex) {
-                // unpriviledged user may have insufficient permissions to create the database -> in-memory fallback
-                conn = std::make_shared<SQLite3>(":memory:");
-                Transformer::createDatabase(conn);
-                auto logger(libdnf::Log::getLogger());
-                logger->error(tfm::format("History database cannot be created, using in-memory database instead: %s", ex.what()));
-            }
+        }
+     } else {
+        // running under unprivileged user, just attempt to open the database for reading
+        try {
+            conn = std::make_shared<SQLite3>(path);
+            // execute a select to detect if the database is readable
+            conn->exec("SELECT * FROM config WHERE key='test'");
+        } catch (SQLite3::Error & ex) {
+            // unpriviledged user may have insufficient permissions to open the database -> in-memory fallback
+            conn = std::make_shared<SQLite3>(":memory:");
+            Transformer::createDatabase(conn);
+            auto logger(libdnf::Log::getLogger());
+            logger->error(tfm::format("History database is not readable, using in-memory database instead: %s", ex.what()));
         }
     }
     Transformer::migrateSchema(conn);
