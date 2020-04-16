@@ -183,6 +183,14 @@ Obsoletes:      platform-python-hawkey < %{version}-%{release}
 Python 3 bindings for the hawkey library.
 %endif
 
+%package -n dnf-repoconfig-daemon
+Summary:        D-bus daemon for repository management
+BuildRequires:  pkgconfig(sdbus-c++)
+BuildRequires:  systemd-rpm-macros
+
+%description -n dnf-repoconfig-daemon
+D-bus daemon for listing, enabling and disabling repositories.
+
 %prep
 %autosetup
 %if %{with python2}
@@ -294,5 +302,12 @@ popd
 %files -n python3-hawkey
 %{python3_sitearch}/hawkey/
 %endif
+
+%files -n dnf-repoconfig-daemon
+%{_bindir}/dnf-repoconfig-daemon
+%{_unitdir}/dnf-repoconfig-daemon.service
+%{_sysconfdir}/dbus-1/system.d/org.rpm.dnf.v1.conf
+%{_datadir}/dbus-1/system-services/org.rpm.dnf.v1.rpm.RepoConf.service
+%{_datadir}/polkit-1/actions/org.rpm.dnf.v1.policy
 
 %changelog
